@@ -1,0 +1,12 @@
+﻿<UserControl x:Class="MapTest.Views.MapTestCtrl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mymap="clr-namespace:MiniGMap.WindowsPresentation;assembly=MiniGMap.WindowsPresentation">
+    <Grid>
+        <!--<Button Content="22222"/>-->
+        <mymap:MiniGMapControl x:Name="GMapCtrl" CacheLocation="D:/LOG/CODE/MapDB" Zoom="10" MaxZoom="18" MinZoom="4"/>
+        <Button Content="222" Height="25" Click="Button_Click" Width="30" HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
+        <Button Content="111" Height="25" Click="Button_Click_1" Width="30" HorizontalAlignment="Left" VerticalAlignment="Bottom"/>
+
+    </Grid>
+</UserControl>
