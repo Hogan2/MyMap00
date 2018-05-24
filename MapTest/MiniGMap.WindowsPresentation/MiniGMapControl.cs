@@ -724,9 +724,7 @@ namespace MiniGMap.WindowsPresentation
         public static readonly DependencyProperty MapProviderProperty = DependencyProperty.Register("MapProvider", 
             typeof(GMapProvider), typeof(MiniGMapControl), new UIPropertyMetadata(EmptyProvider.Instance, 
                 new PropertyChangedCallback(MapProviderPropertyChanged)));
-        public static readonly DependencyProperty MapProvider1Property = DependencyProperty.Register("MapProvider1",
-            typeof(GMapProvider), typeof(MiniGMapControl), new UIPropertyMetadata(EmptyProvider.Instance,
-                new PropertyChangedCallback(MapProvider1PropertyChanged)));
+        
         public GMapProvider MapProvider
         {
             get
@@ -738,17 +736,7 @@ namespace MiniGMap.WindowsPresentation
                 SetValue(MapProviderProperty, value);
             }
         }
-        public GMapProvider MapProvider1
-        {
-            get
-            {
-                return GetValue(MapProvider1Property) as GMapProvider;
-            }
-            set
-            {
-                SetValue(MapProvider1Property, value);
-            }
-        }
+        
         private static void MapProviderPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             MiniGMapControl map = (MiniGMapControl)d;
@@ -787,44 +775,7 @@ namespace MiniGMap.WindowsPresentation
                 }
             }
         }
-        private static void MapProvider1PropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-        {
-            MiniGMapControl map = (MiniGMapControl)d;
-            if (map != null && e.NewValue != null)
-            {
-
-                RectLatLng viewarea = map.SelectedArea;
-                if (viewarea != RectLatLng.Empty)
-                {
-                    map.Position = new PointLatLng(viewarea.Lat - viewarea.HeightLat / 2, viewarea.Lng + viewarea.WidthLng / 2);
-                }
-                else
-                {
-                    viewarea = map.ViewArea;
-                }
-
-                map.Core.Provider1 = e.NewValue as GMapProvider;
-
-                map.Copyright = null;
-                if (!string.IsNullOrEmpty(map.Core.Provider1.Copyright))
-                {
-                    map.Copyright = new FormattedText(map.Core.Provider1.Copyright, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, new Typeface("GenericSansSerif"), 9, Brushes.Navy);
-                }
-
-                if (map.Core.IsStarted && map.Core.zoomToArea)
-                {
-                    // restore zoomrect as close as possible
-                    if (viewarea != RectLatLng.Empty && viewarea != map.ViewArea)
-                    {
-                        int bestZoom = map.Core.GetMaxZoomToFitRect(viewarea);
-                        if (bestZoom > 0 && map.Zoom != bestZoom)
-                        {
-                            map.Zoom = bestZoom;
-                        }
-                    }
-                }
-            }
-        }
+        
         void ForceUpdateOverlays()
         {
             ForceUpdateOverlays(ItemsSource);

@@ -15,16 +15,15 @@ namespace MapTest.Views
             InitializeComponent();
             //GMapCtrl.CacheLocation = @"D:\LOG\ProgramFiles\MapDownloader\MapCache";
 
-            GMapCtrl.MapProvider = GMapProviders.AMapSateliteMap;
+            GMapCtrl.MapProvider = GMapProviders.GoogleChinaSatelliteMap;
 
-            GMapCtrl.MapProvider1 = GMapProviders.GoogleChinaSatelliteMap;
             GMapCtrl.Manager.Mode = AccessMode.CacheOnly;
             GMapCtrl.Position = new PointLatLng(30.6898, 103.9468);
-            GMapCtrl.Zoom = 10;
+            GMapCtrl.Zoom = 14;
             GMapCtrl.MouseWheelZoomType = MouseWheelZoomType.MousePositionWithoutCenter;
             GMapCtrl.ShowCenter = false;
             GMapCtrl.DragButton = MouseButton.Right;
-            GMapCtrl.ShowTileGridLines = true;
+            GMapCtrl.ShowTileGridLines = false;
         }
 
         private void Button_Click(object sender, System.Windows.RoutedEventArgs e)

@@ -42,7 +42,7 @@ namespace MiniGMap.Core
         public float bearing = 0;
         public bool IsRotated = false;
 
-        public bool fillEmptyTiles = true;
+        public bool fillEmptyTiles = false;///////////////////////////////////
 
         public TileMatrix Matrix = new TileMatrix();
 
@@ -149,74 +149,7 @@ namespace MiniGMap.Core
                     }
                 }
             }
-        }
-        public GMapProvider provider1;
-        public GMapProvider Provider1
-        {
-            get
-            {
-                return provider1;
-            }
-            set
-            {
-                if (provider1 == null || !provider1.Equals(value))
-                {
-                    bool diffProjection = (provider1 == null || provider1.Projection != value.Projection);
-
-                    provider1 = value;
-
-                    if (!provider1.IsInitialized)
-                    {
-                        provider1.IsInitialized = true;
-                        provider1.OnInitialized();
-                    }
-
-                    if (provider1.Projection != null && diffProjection)
-                    {
-                        tileRect = new GRect(GPoint.Empty, Provider1.Projection.TileSize);
-                        tileRectBearing = tileRect;
-                        if (IsRotated)
-                        {
-                            tileRectBearing.Inflate(1, 1);
-                        }
-
-                        minOfTiles = Provider1.Projection.GetTileMatrixMinXY(Zoom);
-                        maxOfTiles = Provider1.Projection.GetTileMatrixMaxXY(Zoom);
-                        positionPixel = Provider1.Projection.FromLatLngToPixel(Position, Zoom);
-                    }
-
-                    if (IsStarted)
-                    {
-                        CancelAsyncTasks();
-                        if (diffProjection)
-                        {
-                            OnMapSizeChanged(Width, Height);
-                        }
-                        ReloadMap();
-
-                        if (minZoom < provider1.MinZoom)
-                        {
-                            minZoom = provider1.MinZoom;
-                        }
-
-                        //if(provider.MaxZoom.HasValue && maxZoom > provider.MaxZoom)
-                        //{
-                        //   maxZoom = provider.MaxZoom.Value;
-                        //}
-
-                        zoomToArea = true;
-
-                        if (provider1.Area.HasValue && !provider1.Area.Value.Contains(Position))
-                        {
-                            SetZoomToFitRect(provider1.Area.Value);
-                            zoomToArea = false;
-                        }
-
-                        OnMapTypeChanged?.Invoke(value);
-                    }
-                }
-            }
-        }
+        }        
 
         public GMapProvider provider;
         public GMapProvider Provider
@@ -333,7 +266,6 @@ namespace MiniGMap.Core
         public Core()
         {
             Provider = EmptyProvider.Instance;
-            Provider1 = EmptyProvider.Instance;
         }
         ~Core()
         {
@@ -723,389 +655,134 @@ namespace MiniGMap.Core
                     Debug.WriteLine(ctid + " - try load: " + task);
 
                     Tile t = new Tile(task.Zoom, task.Pos);
-                    if (task.Pos == corepos1 || task.Pos == corepos2 || task.Pos == corepos3 || task.Pos == corepos4)
+
+                    foreach (var tl in task.Core.provider.Overlays)
                     {
-                        CacheLocator.Location = @"D:\LOG\CODE\MapDB";
-                        foreach (var tl in task.Core.provider1.Overlays)
+                        int retry = 0;
+                        do
                         {
-                            int retry = 0;
-                            do
+                            PureImage img = null;
+                            Exception ex = null;
+
+                            if (task.Zoom >= task.Core.provider.MinZoom && (!task.Core.provider.MaxZoom.HasValue
+                                || task.Zoom <= task.Core.provider.MaxZoom))
                             {
-                                PureImage img = null;
-                                Exception ex = null;
-
-                                if (task.Zoom >= task.Core.provider1.MinZoom && (!task.Core.provider1.MaxZoom.HasValue
-                                    || task.Zoom <= task.Core.provider1.MaxZoom))
+                                if (task.Core.skipOverZoom == 0 || task.Zoom <= task.Core.skipOverZoom)
                                 {
-                                    if (task.Core.skipOverZoom == 0 || task.Zoom <= task.Core.skipOverZoom)
+                                    // tile number inversion(BottomLeft -> TopLeft)
+                                    if (tl.InvertedAxisY)
                                     {
-                                        // tile number inversion(BottomLeft -> TopLeft)
-                                        if (tl.InvertedAxisY)
-                                        {
-                                            img = GMaps.Instance.GetImageFrom(tl, new GPoint(task.Pos.X,
-                                                task.Core.maxOfTiles.Height - task.Pos.Y), task.Zoom, out ex);
-                                        }
-                                        else // ok
-                                        {
-                                            img = GMaps.Instance.GetImageFrom(tl, task.Pos, task.Zoom, out ex);
-                                        }
+                                        img = GMaps.Instance.GetImageFrom(tl, new GPoint(task.Pos.X,
+                                            task.Core.maxOfTiles.Height - task.Pos.Y), task.Zoom,
+                                            corepos1, out ex);
+                                    }
+                                    else // ok
+                                    {
+                                        img = GMaps.Instance.GetImageFrom(tl, task.Pos, task.Zoom,
+                                            corepos1, out ex);
                                     }
                                 }
+                            }
 
-                                if (img != null && ex == null)
+                            if (img != null && ex == null)
+                            {
+                                if (task.Core.okZoom < task.Zoom)
                                 {
-                                    if (task.Core.okZoom < task.Zoom)
+                                    task.Core.okZoom = task.Zoom;
+                                    task.Core.skipOverZoom = 0;
+                                    Debug.WriteLine("skipOverZoom disabled, okZoom: " + task.Core.okZoom);
+                                }
+                            }
+                            else if (ex != null)
+                            {
+                                if ((task.Core.skipOverZoom != task.Core.okZoom) && (task.Zoom > task.Core.okZoom))
+                                {
+                                    if (ex.Message.Contains("(404) Not Found"))
                                     {
-                                        task.Core.okZoom = task.Zoom;
-                                        task.Core.skipOverZoom = 0;
-                                        Debug.WriteLine("skipOverZoom disabled, okZoom: " + task.Core.okZoom);
+                                        task.Core.skipOverZoom = task.Core.okZoom;
+                                        Debug.WriteLine("skipOverZoom enabled: " + task.Core.skipOverZoom);
                                     }
                                 }
-                                else if (ex != null)
+                            }
+
+                            // check for parent tiles if not found
+                            if (img == null && task.Core.okZoom > 0 && task.Core.fillEmptyTiles &&
+                                task.Core.Provider.Projection is MercatorProjection)
+                            {
+                                int zoomOffset = task.Zoom > task.Core.okZoom ? task.Zoom - task.Core.okZoom : 1;
+                                long Ix = 0;
+                                GPoint parentTile = GPoint.Empty;
+
+                                while (img == null && zoomOffset < task.Zoom)
                                 {
-                                    if ((task.Core.skipOverZoom != task.Core.okZoom) && (task.Zoom > task.Core.okZoom))
-                                    {
-                                        if (ex.Message.Contains("(404) Not Found"))
-                                        {
-                                            task.Core.skipOverZoom = task.Core.okZoom;
-                                            Debug.WriteLine("skipOverZoom enabled: " + task.Core.skipOverZoom);
-                                        }
-                                    }
-                                }
-
-                                // check for parent tiles if not found
-                                if (img == null && task.Core.okZoom > 0 && task.Core.fillEmptyTiles &&
-                                    task.Core.Provider1.Projection is MercatorProjection)
-                                {
-                                    int zoomOffset = task.Zoom > task.Core.okZoom ? task.Zoom - task.Core.okZoom : 1;
-                                    long Ix = 0;
-                                    GPoint parentTile = GPoint.Empty;
-
-                                    while (img == null && zoomOffset < task.Zoom)
-                                    {
-                                        Ix = (long)Math.Pow(2, zoomOffset);
-                                        parentTile = new GPoint((task.Pos.X / Ix), (task.Pos.Y / Ix));
-                                        img = GMaps.Instance.GetImageFrom(tl, parentTile, task.Zoom - zoomOffset++, out ex);
-                                    }
-
-                                    if (img != null)
-                                    {
-                                        // offsets in quadrant
-                                        long Xoff = Math.Abs(task.Pos.X - (parentTile.X * Ix));
-                                        long Yoff = Math.Abs(task.Pos.Y - (parentTile.Y * Ix));
-
-                                        img.IsParent = true;
-                                        img.Ix = Ix;
-                                        img.Xoff = Xoff;
-                                        img.Yoff = Yoff;
-
-                                        // wpf
-                                        //var geometry = new RectangleGeometry(new Rect(Core.tileRect.X + 0.6, Core.tileRect.Y + 0.6, Core.tileRect.Width + 0.6, Core.tileRect.Height + 0.6));
-                                        //var parentImgRect = new Rect(Core.tileRect.X - Core.tileRect.Width * Xoff + 0.6, Core.tileRect.Y - Core.tileRect.Height * Yoff + 0.6, Core.tileRect.Width * Ix + 0.6, Core.tileRect.Height * Ix + 0.6);
-
-                                        // gdi+
-                                        //System.Drawing.Rectangle dst = new System.Drawing.Rectangle((int)Core.tileRect.X, (int)Core.tileRect.Y, (int)Core.tileRect.Width, (int)Core.tileRect.Height);
-                                        //System.Drawing.RectangleF srcRect = new System.Drawing.RectangleF((float)(Xoff * (img.Img.Width / Ix)), (float)(Yoff * (img.Img.Height / Ix)), (img.Img.Width / Ix), (img.Img.Height / Ix));
-                                    }
+                                    Ix = (long)Math.Pow(2, zoomOffset);
+                                    parentTile = new GPoint((task.Pos.X / Ix), (task.Pos.Y / Ix));
+                                    img = GMaps.Instance.GetImageFrom(tl, parentTile, task.Zoom - zoomOffset++,
+                                        corepos1, out ex);
                                 }
 
                                 if (img != null)
                                 {
-                                    Debug.WriteLine(ctid + " - tile loaded: " + img.Data.Length / 1024 + "KB, " + task);
-                                    {
-                                        t.AddOverlay(img);
-                                    }
-                                    break;
-                                }
-                                else
-                                {
-                                    if (ex != null)
-                                    {
-                                        lock (task.Core.FailedLoads)
-                                        {
-                                            if (!task.Core.FailedLoads.ContainsKey(task))
-                                            {
-                                                task.Core.FailedLoads.Add(task, ex);
+                                    // offsets in quadrant
+                                    long Xoff = Math.Abs(task.Pos.X - (parentTile.X * Ix));
+                                    long Yoff = Math.Abs(task.Pos.Y - (parentTile.Y * Ix));
 
-                                                if (task.Core.OnEmptyTileError != null)
-                                                {
-                                                    if (!task.Core.RaiseEmptyTileError)
-                                                    {
-                                                        task.Core.RaiseEmptyTileError = true;
-                                                        task.Core.OnEmptyTileError(task.Zoom, task.Pos);
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
+                                    img.IsParent = true;
+                                    img.Ix = Ix;
+                                    img.Xoff = Xoff;
+                                    img.Yoff = Yoff;
 
-                                    if (task.Core.RetryLoadTile > 0)
-                                    {
-                                        Debug.WriteLine(ctid + " - ProcessLoadTask: " + task + " -> empty tile, retry " + retry);
-                                        {
-                                            Thread.Sleep(1111);
-                                        }
-                                    }
+                                    // wpf
+                                    //var geometry = new RectangleGeometry(new Rect(Core.tileRect.X + 0.6, Core.tileRect.Y + 0.6, Core.tileRect.Width + 0.6, Core.tileRect.Height + 0.6));
+                                    //var parentImgRect = new Rect(Core.tileRect.X - Core.tileRect.Width * Xoff + 0.6, Core.tileRect.Y - Core.tileRect.Height * Yoff + 0.6, Core.tileRect.Width * Ix + 0.6, Core.tileRect.Height * Ix + 0.6);
+
+                                    // gdi+
+                                    //System.Drawing.Rectangle dst = new System.Drawing.Rectangle((int)Core.tileRect.X, (int)Core.tileRect.Y, (int)Core.tileRect.Width, (int)Core.tileRect.Height);
+                                    //System.Drawing.RectangleF srcRect = new System.Drawing.RectangleF((float)(Xoff * (img.Img.Width / Ix)), (float)(Yoff * (img.Img.Height / Ix)), (img.Img.Width / Ix), (img.Img.Height / Ix));
                                 }
                             }
-                            while (++retry < task.Core.RetryLoadTile);
-                        }
-                    }
-                    else
-                    {
-                        CacheLocator.Location = @"D:\LOG\ProgramFiles\MapDownloader\MapCache";
-                        foreach (var tl in task.Core.provider.Overlays)
-                        {
-                            int retry = 0;
-                            do
+
+                            if (img != null)
                             {
-                                PureImage img = null;
-                                Exception ex = null;
-
-                                if (task.Zoom >= task.Core.provider.MinZoom && (!task.Core.provider.MaxZoom.HasValue
-                                    || task.Zoom <= task.Core.provider.MaxZoom))
+                                Debug.WriteLine(ctid + " - tile loaded: " + img.Data.Length / 1024 + "KB, " + task);
                                 {
-                                    if (task.Core.skipOverZoom == 0 || task.Zoom <= task.Core.skipOverZoom)
+                                    t.AddOverlay(img);
+                                }
+                                break;
+                            }
+                            else
+                            {
+                                if (ex != null)
+                                {
+                                    lock (task.Core.FailedLoads)
                                     {
-                                        // tile number inversion(BottomLeft -> TopLeft)
-                                        if (tl.InvertedAxisY)
+                                        if (!task.Core.FailedLoads.ContainsKey(task))
                                         {
-                                            img = GMaps.Instance.GetImageFrom(tl, new GPoint(task.Pos.X,
-                                                task.Core.maxOfTiles.Height - task.Pos.Y), task.Zoom, out ex);
-                                        }
-                                        else // ok
-                                        {
-                                            img = GMaps.Instance.GetImageFrom(tl, task.Pos, task.Zoom, out ex);
-                                        }
-                                    }
-                                }
+                                            task.Core.FailedLoads.Add(task, ex);
 
-                                if (img != null && ex == null)
-                                {
-                                    if (task.Core.okZoom < task.Zoom)
-                                    {
-                                        task.Core.okZoom = task.Zoom;
-                                        task.Core.skipOverZoom = 0;
-                                        Debug.WriteLine("skipOverZoom disabled, okZoom: " + task.Core.okZoom);
-                                    }
-                                }
-                                else if (ex != null)
-                                {
-                                    if ((task.Core.skipOverZoom != task.Core.okZoom) && (task.Zoom > task.Core.okZoom))
-                                    {
-                                        if (ex.Message.Contains("(404) Not Found"))
-                                        {
-                                            task.Core.skipOverZoom = task.Core.okZoom;
-                                            Debug.WriteLine("skipOverZoom enabled: " + task.Core.skipOverZoom);
-                                        }
-                                    }
-                                }
-
-                                // check for parent tiles if not found
-                                if (img == null && task.Core.okZoom > 0 && task.Core.fillEmptyTiles &&
-                                    task.Core.Provider.Projection is MercatorProjection)
-                                {
-                                    int zoomOffset = task.Zoom > task.Core.okZoom ? task.Zoom - task.Core.okZoom : 1;
-                                    long Ix = 0;
-                                    GPoint parentTile = GPoint.Empty;
-
-                                    while (img == null && zoomOffset < task.Zoom)
-                                    {
-                                        Ix = (long)Math.Pow(2, zoomOffset);
-                                        parentTile = new GPoint((task.Pos.X / Ix), (task.Pos.Y / Ix));
-                                        img = GMaps.Instance.GetImageFrom(tl, parentTile, task.Zoom - zoomOffset++, out ex);
-                                    }
-
-                                    if (img != null)
-                                    {
-                                        // offsets in quadrant
-                                        long Xoff = Math.Abs(task.Pos.X - (parentTile.X * Ix));
-                                        long Yoff = Math.Abs(task.Pos.Y - (parentTile.Y * Ix));
-
-                                        img.IsParent = true;
-                                        img.Ix = Ix;
-                                        img.Xoff = Xoff;
-                                        img.Yoff = Yoff;
-
-                                        // wpf
-                                        //var geometry = new RectangleGeometry(new Rect(Core.tileRect.X + 0.6, Core.tileRect.Y + 0.6, Core.tileRect.Width + 0.6, Core.tileRect.Height + 0.6));
-                                        //var parentImgRect = new Rect(Core.tileRect.X - Core.tileRect.Width * Xoff + 0.6, Core.tileRect.Y - Core.tileRect.Height * Yoff + 0.6, Core.tileRect.Width * Ix + 0.6, Core.tileRect.Height * Ix + 0.6);
-
-                                        // gdi+
-                                        //System.Drawing.Rectangle dst = new System.Drawing.Rectangle((int)Core.tileRect.X, (int)Core.tileRect.Y, (int)Core.tileRect.Width, (int)Core.tileRect.Height);
-                                        //System.Drawing.RectangleF srcRect = new System.Drawing.RectangleF((float)(Xoff * (img.Img.Width / Ix)), (float)(Yoff * (img.Img.Height / Ix)), (img.Img.Width / Ix), (img.Img.Height / Ix));
-                                    }
-                                }
-
-                                if (img != null)
-                                {
-                                    Debug.WriteLine(ctid + " - tile loaded: " + img.Data.Length / 1024 + "KB, " + task);
-                                    {
-                                        t.AddOverlay(img);
-                                    }
-                                    break;
-                                }
-                                else
-                                {
-                                    if (ex != null)
-                                    {
-                                        lock (task.Core.FailedLoads)
-                                        {
-                                            if (!task.Core.FailedLoads.ContainsKey(task))
+                                            if (task.Core.OnEmptyTileError != null)
                                             {
-                                                task.Core.FailedLoads.Add(task, ex);
-
-                                                if (task.Core.OnEmptyTileError != null)
+                                                if (!task.Core.RaiseEmptyTileError)
                                                 {
-                                                    if (!task.Core.RaiseEmptyTileError)
-                                                    {
-                                                        task.Core.RaiseEmptyTileError = true;
-                                                        task.Core.OnEmptyTileError(task.Zoom, task.Pos);
-                                                    }
+                                                    task.Core.RaiseEmptyTileError = true;
+                                                    task.Core.OnEmptyTileError(task.Zoom, task.Pos);
                                                 }
                                             }
                                         }
                                     }
+                                }
 
-                                    if (task.Core.RetryLoadTile > 0)
+                                if (task.Core.RetryLoadTile > 0)
+                                {
+                                    Debug.WriteLine(ctid + " - ProcessLoadTask: " + task + " -> empty tile, retry " + retry);
                                     {
-                                        Debug.WriteLine(ctid + " - ProcessLoadTask: " + task + " -> empty tile, retry " + retry);
-                                        {
-                                            Thread.Sleep(1111);
-                                        }
+                                        Thread.Sleep(1111);
                                     }
                                 }
                             }
-                            while (++retry < task.Core.RetryLoadTile);
                         }
+                        while (++retry < task.Core.RetryLoadTile);
                     }
-                    //foreach (var tl in task.Core.provider.Overlays)
-                    //{
-                    //    int retry = 0;
-                    //    do
-                    //    {
-                    //        PureImage img = null;
-                    //        Exception ex = null;
-
-                    //        if (task.Zoom >= task.Core.provider.MinZoom && (!task.Core.provider.MaxZoom.HasValue 
-                    //            || task.Zoom <= task.Core.provider.MaxZoom))
-                    //        {
-                    //            if (task.Core.skipOverZoom == 0 || task.Zoom <= task.Core.skipOverZoom)
-                    //            {
-                    //                // tile number inversion(BottomLeft -> TopLeft)
-                    //                if (tl.InvertedAxisY)
-                    //                {
-                    //                    img = GMaps.Instance.GetImageFrom(tl, task.Core.provider1, new GPoint(task.Pos.X, 
-                    //                        task.Core.maxOfTiles.Height - task.Pos.Y), task.Zoom, 
-                    //                        corepos1, out ex);
-                    //                }
-                    //                else // ok
-                    //                {
-                    //                    img = GMaps.Instance.GetImageFrom(tl, task.Core.provider1, task.Pos, task.Zoom, 
-                    //                        corepos1, out ex);
-                    //                }
-                    //            }
-                    //        }
-
-                    //        if (img != null && ex == null)
-                    //        {
-                    //            if (task.Core.okZoom < task.Zoom)
-                    //            {
-                    //                task.Core.okZoom = task.Zoom;
-                    //                task.Core.skipOverZoom = 0;
-                    //                Debug.WriteLine("skipOverZoom disabled, okZoom: " + task.Core.okZoom);
-                    //            }
-                    //        }
-                    //        else if (ex != null)
-                    //        {
-                    //            if ((task.Core.skipOverZoom != task.Core.okZoom) && (task.Zoom > task.Core.okZoom))
-                    //            {
-                    //                if (ex.Message.Contains("(404) Not Found"))
-                    //                {
-                    //                    task.Core.skipOverZoom = task.Core.okZoom;
-                    //                    Debug.WriteLine("skipOverZoom enabled: " + task.Core.skipOverZoom);
-                    //                }
-                    //            }
-                    //        }
-
-                    //        // check for parent tiles if not found
-                    //        if (img == null && task.Core.okZoom > 0 && task.Core.fillEmptyTiles && 
-                    //            task.Core.Provider.Projection is MercatorProjection)
-                    //        {
-                    //            int zoomOffset = task.Zoom > task.Core.okZoom ? task.Zoom - task.Core.okZoom : 1;
-                    //            long Ix = 0;
-                    //            GPoint parentTile = GPoint.Empty;
-
-                    //            while (img == null && zoomOffset < task.Zoom)
-                    //            {
-                    //                Ix = (long)Math.Pow(2, zoomOffset);
-                    //                parentTile = new GPoint((task.Pos.X / Ix), (task.Pos.Y / Ix));
-                    //                img = GMaps.Instance.GetImageFrom(tl, task.Core.provider1, parentTile, task.Zoom - zoomOffset++, 
-                    //                    corepos1, out ex);
-                    //            }
-
-                    //            if (img != null)
-                    //            {
-                    //                // offsets in quadrant
-                    //                long Xoff = Math.Abs(task.Pos.X - (parentTile.X * Ix));
-                    //                long Yoff = Math.Abs(task.Pos.Y - (parentTile.Y * Ix));
-
-                    //                img.IsParent = true;
-                    //                img.Ix = Ix;
-                    //                img.Xoff = Xoff;
-                    //                img.Yoff = Yoff;
-
-                    //                // wpf
-                    //                //var geometry = new RectangleGeometry(new Rect(Core.tileRect.X + 0.6, Core.tileRect.Y + 0.6, Core.tileRect.Width + 0.6, Core.tileRect.Height + 0.6));
-                    //                //var parentImgRect = new Rect(Core.tileRect.X - Core.tileRect.Width * Xoff + 0.6, Core.tileRect.Y - Core.tileRect.Height * Yoff + 0.6, Core.tileRect.Width * Ix + 0.6, Core.tileRect.Height * Ix + 0.6);
-
-                    //                // gdi+
-                    //                //System.Drawing.Rectangle dst = new System.Drawing.Rectangle((int)Core.tileRect.X, (int)Core.tileRect.Y, (int)Core.tileRect.Width, (int)Core.tileRect.Height);
-                    //                //System.Drawing.RectangleF srcRect = new System.Drawing.RectangleF((float)(Xoff * (img.Img.Width / Ix)), (float)(Yoff * (img.Img.Height / Ix)), (img.Img.Width / Ix), (img.Img.Height / Ix));
-                    //            }
-                    //        }
-
-                    //        if (img != null)
-                    //        {
-                    //            Debug.WriteLine(ctid + " - tile loaded: " + img.Data.Length / 1024 + "KB, " + task);
-                    //            {
-                    //                t.AddOverlay(img);
-                    //            }
-                    //            break;
-                    //        }
-                    //        else
-                    //        {
-                    //            if (ex != null)
-                    //            {
-                    //                lock (task.Core.FailedLoads)
-                    //                {
-                    //                    if (!task.Core.FailedLoads.ContainsKey(task))
-                    //                    {
-                    //                        task.Core.FailedLoads.Add(task, ex);
-
-                    //                        if (task.Core.OnEmptyTileError != null)
-                    //                        {
-                    //                            if (!task.Core.RaiseEmptyTileError)
-                    //                            {
-                    //                                task.Core.RaiseEmptyTileError = true;
-                    //                                task.Core.OnEmptyTileError(task.Zoom, task.Pos);
-                    //                            }
-                    //                        }
-                    //                    }
-                    //                }
-                    //            }
-
-                    //            if (task.Core.RetryLoadTile > 0)
-                    //            {
-                    //                Debug.WriteLine(ctid + " - ProcessLoadTask: " + task + " -> empty tile, retry " + retry);
-                    //                {
-                    //                    Thread.Sleep(1111);
-                    //                }
-                    //            }
-                    //        }
-                    //    }
-                    //    while (++retry < task.Core.RetryLoadTile);
-                    //}
 
                     if (t.HasAnyOverlays && task.Core.IsStarted)
                     {

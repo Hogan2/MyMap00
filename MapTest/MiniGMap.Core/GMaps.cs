@@ -14,37 +14,37 @@ namespace MiniGMap.Core
         /// <summary>
         /// tile access mode
         /// </summary>
-        public AccessMode Mode = AccessMode.ServerAndCache;
+        public AccessMode Mode = AccessMode.CacheOnly;
 
         /// <summary>
         /// is map ussing cache for routing
         /// </summary>
-        public bool UseRouteCache = true;
+        public bool UseRouteCache = false;
 
         /// <summary>
         /// is map using cache for geocoder
         /// </summary>
-        public bool UseGeocoderCache = true;
+        public bool UseGeocoderCache = false;
 
         /// <summary>
         /// is map using cache for directions
         /// </summary>
-        public bool UseDirectionsCache = true;
+        public bool UseDirectionsCache = false;
 
         /// <summary>
         /// is map using cache for placemarks
         /// </summary>
-        public bool UsePlacemarkCache = true;
+        public bool UsePlacemarkCache = false;
 
         /// <summary>
         /// is map ussing cache for other url
         /// </summary>
-        public bool UseUrlCache = true;
+        public bool UseUrlCache = false;
 
         /// <summary>
         /// is map using memory cache for tiles
         /// </summary>
-        public bool UseMemoryCache = true;
+        public bool UseMemoryCache = false;
 
         /// <summary>
         /// primary cache provider, by default: ultra fast SQLite!
@@ -542,107 +542,124 @@ namespace MiniGMap.Core
         /// <param name="pos"></param>
         /// <param name="zoom"></param>
         /// <returns></returns>
-        public PureImage GetImageFrom(GMapProvider provider, GPoint pos, int zoom, out Exception result)
+        public PureImage GetImageFrom(GMapProvider provider, GPoint pos, int zoom, GPoint corepos, out Exception result)
         {
             PureImage ret = null;
             result = null;
-            
+            //GPoint corepos1 = new GPoint(corepos.X / 256, corepos.Y / 256);
+            GPoint corepos2 = new GPoint(corepos.X, corepos.Y - 1);
+            GPoint corepos3 = new GPoint(corepos.X + 1, corepos.Y - 1);
+            GPoint corepos4 = new GPoint(corepos.X + 1, corepos.Y);
             try
             {
                 var rtile = new RawTile(provider.DbId, pos, zoom);
 
                 //let't check memmory first
-                if (UseMemoryCache)
-                {
-                    var m = MemoryCache.GetTileFromMemoryCache(rtile);
-                    if (m != null)
-                    {
-                        if (GMapProvider.TileImageProxy != null)
-                        {
-                            ret = GMapProvider.TileImageProxy.FromArray(m);
-                            if (ret == null)
-                            {
-#if DEBUG
-                                Debug.WriteLine("Image disposed in MemoryCache o.O, should never happen ;} " + new RawTile(provider.DbId, pos, zoom));
-                                if (Debugger.IsAttached)
-                                {
-                                    Debugger.Break();
-                                }
-#endif
-                                m = null;
-                            }
-                        }
-                    }
-                }
+//                if (UseMemoryCache)
+//                {
+//                    var m = MemoryCache.GetTileFromMemoryCache(rtile);
+//                    if (m != null)
+//                    {
+//                        if (GMapProvider.TileImageProxy != null)
+//                        {
+//                            ret = GMapProvider.TileImageProxy.FromArray(m);
+//                            if (ret == null)
+//                            {
+//#if DEBUG
+//                                Debug.WriteLine("Image disposed in MemoryCache o.O, should never happen ;} " + new RawTile(provider.DbId, pos, zoom));
+//                                if (Debugger.IsAttached)
+//                                {
+//                                    Debugger.Break();
+//                                }
+//#endif
+//                                m = null;
+//                            }
+//                        }
+//                    }
+//                }
 
-                if (true)
+                if (ret == null)
                 {
                     if (Mode != AccessMode.ServerOnly && !provider.BypassCache)
                     {
                         if (PrimaryCache != null)
                         {
                             // hold writer for 5s
-                            if (cacheOnIdleRead)
-                            {
-                                Interlocked.Exchange(ref readingCache, 5);
-                            }
+                            //if (cacheOnIdleRead)
+                            //{
+                            //    Interlocked.Exchange(ref readingCache, 5);
+                            //}
                             
-                            ret = PrimaryCache.GetImageFromCache(provider.DbId, pos, zoom);//
-
-                            if (ret != null)
+                            if (pos == corepos || pos == corepos2 || pos == corepos3 || pos == corepos4)//
                             {
-                                if (UseMemoryCache)
-                                {
-                                    MemoryCache.AddTileToMemoryCache(rtile, ret.Data.GetBuffer());
-                                }
-                                return ret;
+                                CacheLocator.Location = @"D:\LOG\ProgramFiles\MapDownloader\MapCache";
+                                //CacheLocator.Location = @"D:\LOG\CODE\MapDB";
+                                provider = GMapProviders.AMapSateliteMap;
+                                ret = PrimaryCache.GetImageFromCache(1542757547, pos, zoom);//provider1.DbId
                             }
+                            else
+                            {
+                                CacheLocator.Location = @"D:\LOG\CODE\MapDB";
+                                //CacheLocator.Location = @"D:\LOG\ProgramFiles\MapDownloader\MapCache";
+                                provider = GMapProviders.GoogleChinaSatelliteMap;
+                                ret = PrimaryCache.GetImageFromCache(provider.DbId, pos, zoom);
+                            }
+                            //ret = PrimaryCache.GetImageFromCache(provider.DbId, pos, zoom);//
+
+                            //if (ret != null)
+                            //{
+                            //    if (UseMemoryCache)
+                            //    {
+                            //        MemoryCache.AddTileToMemoryCache(rtile, ret.Data.GetBuffer());
+                            //    }
+                            //    return ret;
+                            //}
                         }
 
-                        if (SecondaryCache != null)
-                        {
-                            // hold writer for 5s
-                            if (cacheOnIdleRead)
-                            {
-                                Interlocked.Exchange(ref readingCache, 5);
-                            }
+                        //if (SecondaryCache != null)
+                        //{
+                        //    // hold writer for 5s
+                        //    if (cacheOnIdleRead)
+                        //    {
+                        //        Interlocked.Exchange(ref readingCache, 5);
+                        //    }
 
-                            ret = SecondaryCache.GetImageFromCache(provider.DbId, pos, zoom);
-                            if (ret != null)
-                            {
-                                if (UseMemoryCache)
-                                {
-                                    MemoryCache.AddTileToMemoryCache(rtile, ret.Data.GetBuffer());
-                                }
-                                EnqueueCacheTask(new CacheQueueItem(rtile, ret.Data.GetBuffer(), CacheUsage.First));
-                                return ret;
-                            }
-                        }
+                        //    ret = SecondaryCache.GetImageFromCache(provider.DbId, pos, zoom);
+                        //    if (ret != null)
+                        //    {
+                        //        if (UseMemoryCache)
+                        //        {
+                        //            MemoryCache.AddTileToMemoryCache(rtile, ret.Data.GetBuffer());
+                        //        }
+                        //        EnqueueCacheTask(new CacheQueueItem(rtile, ret.Data.GetBuffer(), CacheUsage.First));
+                        //        return ret;
+                        //    }
+                        //}
                     }
 
-                    if (Mode != AccessMode.CacheOnly)
-                    {
-                        ret = provider.GetTileImage(pos, zoom);
-                        {
-                            // Enqueue Cache
-                            if (ret != null)
-                            {
-                                if (UseMemoryCache)
-                                {
-                                    MemoryCache.AddTileToMemoryCache(rtile, ret.Data.GetBuffer());
-                                }
+                    //if (Mode != AccessMode.CacheOnly)
+                    //{
+                    //    ret = provider.GetTileImage(pos, zoom);
+                    //    {
+                    //        // Enqueue Cache
+                    //        if (ret != null)
+                    //        {
+                    //            if (UseMemoryCache)
+                    //            {
+                    //                MemoryCache.AddTileToMemoryCache(rtile, ret.Data.GetBuffer());
+                    //            }
 
-                                if (Mode != AccessMode.ServerOnly && !provider.BypassCache)
-                                {
-                                    EnqueueCacheTask(new CacheQueueItem(rtile, ret.Data.GetBuffer(), CacheUsage.Both));
-                                }
-                            }
-                        }
-                    }
-                    else
-                    {
-                        result = noDataException;
-                    }
+                    //            if (Mode != AccessMode.ServerOnly && !provider.BypassCache)
+                    //            {
+                    //                EnqueueCacheTask(new CacheQueueItem(rtile, ret.Data.GetBuffer(), CacheUsage.Both));
+                    //            }
+                    //        }
+                    //    }
+                    //}
+                    //else
+                    //{
+                    //    result = noDataException;
+                    //}
                 }
             }
             catch (Exception ex)
