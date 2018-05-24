@@ -1,4 +1,5 @@
 ﻿using MiniGMap.Core;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 
@@ -12,29 +13,52 @@ namespace MapTest.Views
         public MapTestCtrl()
         {
             InitializeComponent();
-            GMapCtrl.MapProvider = GMapProviders.GoogleChinaSatelliteMap;
+            //GMapCtrl.CacheLocation = @"D:\LOG\ProgramFiles\MapDownloader\MapCache";
+
+            GMapCtrl.MapProvider = GMapProviders.AMapSateliteMap;
+
+            GMapCtrl.MapProvider1 = GMapProviders.GoogleChinaSatelliteMap;
             GMapCtrl.Manager.Mode = AccessMode.CacheOnly;
             GMapCtrl.Position = new PointLatLng(30.6898, 103.9468);
             GMapCtrl.Zoom = 10;
             GMapCtrl.MouseWheelZoomType = MouseWheelZoomType.MousePositionWithoutCenter;
             GMapCtrl.ShowCenter = false;
             GMapCtrl.DragButton = MouseButton.Right;
+            GMapCtrl.ShowTileGridLines = true;
         }
 
         private void Button_Click(object sender, System.Windows.RoutedEventArgs e)
         {
-            GMapCtrl.CacheLocation = @"D:\LOG\CODE\MapDB";
-            GMapCtrl.MapProvider = GMapProviders.GoogleChinaSatelliteMap;
-            GMapCtrl.Manager.Mode = AccessMode.CacheOnly;
-            GMapCtrl.ReloadMap();
+            //GMapCtrl.CacheLocation = @"D:\LOG\CODE\MapDB";
+            //GMapCtrl.MapProvider = GMapProviders.GoogleChinaSatelliteMap;
+            //GMapCtrl.Manager.Mode = AccessMode.CacheOnly;
+            //GMapCtrl.ReloadMap();
+            GMapCtrl.Zoom++;
         }
 
         private void Button_Click_1(object sender, System.Windows.RoutedEventArgs e)
         {
-            GMapCtrl.CacheLocation = @"D:\LOG\ProgramFiles\MapDownloader\MapCache";
-            GMapCtrl.MapProvider = GMapProviders.AMapSateliteMap;
-            GMapCtrl.Manager.Mode = AccessMode.CacheOnly;
-            GMapCtrl.ReloadMap();
+            //GMapCtrl.CacheLocation = @"D:\LOG\ProgramFiles\MapDownloader\MapCache";
+            //GMapCtrl.MapProvider = GMapProviders.AMapSateliteMap;
+            //GMapCtrl.Manager.Mode = AccessMode.CacheOnly;
+            //GMapCtrl.ReloadMap();
+            GMapCtrl.Zoom--;
+        }
+
+        private void GMapCtrl_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            //if (e.LeftButton == MouseButtonState.Pressed)
+            //{
+                
+            //}
+        }
+
+        private void GMapCtrl_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            //Point p = e.GetPosition(GMapCtrl);
+            //GMapCtrl.NewPoint = GMapCtrl.FromLocalToLatLng((int)p.X, (int)p.Y);
+            //GMapCtrl.UpdateBounds();
+            //GMapCtrl.InvalidateVisual(true);
         }
     }
 }

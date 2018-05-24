@@ -94,7 +94,37 @@ namespace MiniGMap.Core
                 Lock.ReleaseWriterLock();
             }
         }
+        public void ClearLevelAndPointsIn(int zoom, GPoint pos)///////////////////////////////////////
+        {
+            Lock.AcquireWriterLock();
+            try
+            {
+                if (zoom < Levels.Count)
+                {
+                    var l = Levels[zoom];
 
+                    tmp.Clear();
+
+                    foreach (var t in l)
+                    {
+                        if (pos == t.Key)
+                        {
+                            tmp.Add(t);
+                        }
+                    }
+                    foreach (var r in tmp)
+                    {
+                        l.Remove(r.Key);
+                        r.Value.Dispose();
+                    }
+                    tmp.Clear();
+                }
+            }
+            finally
+            {
+                Lock.ReleaseWriterLock();
+            }
+        }
         public void ClearLevelsBelove(int zoom)
         {
             Lock.AcquireWriterLock();

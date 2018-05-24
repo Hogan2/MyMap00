@@ -57,14 +57,14 @@ namespace MiniGMap.Core
 
         //public static readonly OpenSeaMapHybridProvider OpenSeaMapHybrid = OpenSeaMapHybridProvider.Instance;
 
-#if OpenStreetOsm
-      public static readonly OpenStreetOsmProvider OpenStreetOsm = OpenStreetOsmProvider.Instance;
-#endif
+//#if OpenStreetOsm
+//      public static readonly OpenStreetOsmProvider OpenStreetOsm = OpenStreetOsmProvider.Instance;
+//#endif
 
-#if OpenStreetMapSurfer
-      public static readonly OpenStreetMapSurferProvider OpenStreetMapSurfer = OpenStreetMapSurferProvider.Instance;
-      public static readonly OpenStreetMapSurferTerrainProvider OpenStreetMapSurferTerrain = OpenStreetMapSurferTerrainProvider.Instance;
-#endif
+//#if OpenStreetMapSurfer
+//      public static readonly OpenStreetMapSurferProvider OpenStreetMapSurfer = OpenStreetMapSurferProvider.Instance;
+//      public static readonly OpenStreetMapSurferTerrainProvider OpenStreetMapSurferTerrain = OpenStreetMapSurferTerrainProvider.Instance;
+//#endif
         //public static readonly WikiMapiaMapProvider WikiMapiaMap = WikiMapiaMapProvider.Instance;
 
         //public static readonly BingMapProvider BingMap = BingMapProvider.Instance;

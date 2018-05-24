@@ -4,7 +4,7 @@
              xmlns:mymap="clr-namespace:MiniGMap.WindowsPresentation;assembly=MiniGMap.WindowsPresentation">
     <Grid>
         <!--<Button Content="22222"/>-->
-        <mymap:MiniGMapControl x:Name="GMapCtrl" CacheLocation="D:/LOG/CODE/MapDB" Zoom="10" MaxZoom="18" MinZoom="4"/>
+        <mymap:MiniGMapControl x:Name="GMapCtrl"  MaxZoom="18" MinZoom="4" MouseDoubleClick="GMapCtrl_MouseDoubleClick" MouseLeftButtonUp="GMapCtrl_MouseLeftButtonUp"/>
         <Button Content="222" Height="25" Click="Button_Click" Width="30" HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
         <Button Content="111" Height="25" Click="Button_Click_1" Width="30" HorizontalAlignment="Left" VerticalAlignment="Bottom"/>
 

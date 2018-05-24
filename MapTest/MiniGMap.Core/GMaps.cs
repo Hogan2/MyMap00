@@ -2,12 +2,10 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace MiniGMap.Core
 {
@@ -533,7 +531,7 @@ namespace MiniGMap.Core
 
 
 
-        
+
 
         #endregion
 
@@ -548,12 +546,12 @@ namespace MiniGMap.Core
         {
             PureImage ret = null;
             result = null;
-
+            
             try
             {
                 var rtile = new RawTile(provider.DbId, pos, zoom);
 
-                // let't check memmory first
+                //let't check memmory first
                 if (UseMemoryCache)
                 {
                     var m = MemoryCache.GetTileFromMemoryCache(rtile);
@@ -577,7 +575,7 @@ namespace MiniGMap.Core
                     }
                 }
 
-                if (ret == null)
+                if (true)
                 {
                     if (Mode != AccessMode.ServerOnly && !provider.BypassCache)
                     {
@@ -588,8 +586,9 @@ namespace MiniGMap.Core
                             {
                                 Interlocked.Exchange(ref readingCache, 5);
                             }
+                            
+                            ret = PrimaryCache.GetImageFromCache(provider.DbId, pos, zoom);//
 
-                            ret = PrimaryCache.GetImageFromCache(provider.DbId, pos, zoom);
                             if (ret != null)
                             {
                                 if (UseMemoryCache)

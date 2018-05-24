@@ -1,11 +1,12 @@
-﻿using System;
+﻿#define UseFastResourceLock
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-
 namespace MiniGMap.Core
 {
     public sealed class FastReaderWriterLock : IDisposable
@@ -60,7 +61,7 @@ namespace MiniGMap.Core
         FastResourceLock pLock;
 #endif
 
-        static readonly bool UseNativeSRWLock = Stuff.IsRunningOnVistaOrLater() && IntPtr.Size == 4; // works only in 32-bit mode, any ideas on native 64-bit support? 
+        static readonly bool UseNativeSRWLock = Stuff.IsRunningOnWin10orLater() && IntPtr.Size == 4; 
 
 #endif
 

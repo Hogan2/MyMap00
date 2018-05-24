@@ -36,6 +36,7 @@ namespace MiniGMap.WindowsPresentation
         public MouseButton DragButton = MouseButton.Right;
         public readonly ObservableCollection<GMapMarker> Markers = new ObservableCollection<GMapMarker>();
 
+
         public MiniGMapControl()
         {
             if (!DesignModeInConstruct)
@@ -115,6 +116,13 @@ namespace MiniGMap.WindowsPresentation
         {
             Core.ReloadMap();
         }
+        public void UpdateBounds()
+        {
+            //Core.CancelAsyncTasks();
+            Core.Matrix.ClearLevelAndPointsIn(Core.Zoom, Core.corepos);
+            //Core.Refresh.Set();
+            Core.UpdateBounds();
+        }
         protected bool DesignModeInConstruct
         {
             get
@@ -144,7 +152,7 @@ namespace MiniGMap.WindowsPresentation
         bool isSelected = false;
         PointLatLng selectionEnd;
         PointLatLng selectionStart;
-
+        
         protected override void OnMouseDown(MouseButtonEventArgs e)
         {
             base.OnMouseDown(e);
@@ -186,7 +194,7 @@ namespace MiniGMap.WindowsPresentation
         protected override void OnMouseUp(MouseButtonEventArgs e)
         {
             base.OnMouseUp(e);
-
+            
             if (isSelected)
             {
                 isSelected = false;
@@ -510,6 +518,14 @@ namespace MiniGMap.WindowsPresentation
             Point temp = (Point)e.NewValue;
             (source as MiniGMapControl).Position = new PointLatLng(temp.X, temp.Y);
         }
+
+
+        public PointLatLng NewPoint
+        {
+            get { return Core.newPoint; }
+            set { Core.newPoint = value; }
+        }
+
         public PointLatLng Position
         {
             get
@@ -708,7 +724,9 @@ namespace MiniGMap.WindowsPresentation
         public static readonly DependencyProperty MapProviderProperty = DependencyProperty.Register("MapProvider", 
             typeof(GMapProvider), typeof(MiniGMapControl), new UIPropertyMetadata(EmptyProvider.Instance, 
                 new PropertyChangedCallback(MapProviderPropertyChanged)));
-
+        public static readonly DependencyProperty MapProvider1Property = DependencyProperty.Register("MapProvider1",
+            typeof(GMapProvider), typeof(MiniGMapControl), new UIPropertyMetadata(EmptyProvider.Instance,
+                new PropertyChangedCallback(MapProvider1PropertyChanged)));
         public GMapProvider MapProvider
         {
             get
@@ -720,7 +738,17 @@ namespace MiniGMap.WindowsPresentation
                 SetValue(MapProviderProperty, value);
             }
         }
-
+        public GMapProvider MapProvider1
+        {
+            get
+            {
+                return GetValue(MapProvider1Property) as GMapProvider;
+            }
+            set
+            {
+                SetValue(MapProvider1Property, value);
+            }
+        }
         private static void MapProviderPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             MiniGMapControl map = (MiniGMapControl)d;
@@ -743,6 +771,44 @@ namespace MiniGMap.WindowsPresentation
                 if (!string.IsNullOrEmpty(map.Core.Provider.Copyright))
                 {
                     map.Copyright = new FormattedText(map.Core.Provider.Copyright, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, new Typeface("GenericSansSerif"), 9, Brushes.Navy);
+                }
+
+                if (map.Core.IsStarted && map.Core.zoomToArea)
+                {
+                    // restore zoomrect as close as possible
+                    if (viewarea != RectLatLng.Empty && viewarea != map.ViewArea)
+                    {
+                        int bestZoom = map.Core.GetMaxZoomToFitRect(viewarea);
+                        if (bestZoom > 0 && map.Zoom != bestZoom)
+                        {
+                            map.Zoom = bestZoom;
+                        }
+                    }
+                }
+            }
+        }
+        private static void MapProvider1PropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            MiniGMapControl map = (MiniGMapControl)d;
+            if (map != null && e.NewValue != null)
+            {
+
+                RectLatLng viewarea = map.SelectedArea;
+                if (viewarea != RectLatLng.Empty)
+                {
+                    map.Position = new PointLatLng(viewarea.Lat - viewarea.HeightLat / 2, viewarea.Lng + viewarea.WidthLng / 2);
+                }
+                else
+                {
+                    viewarea = map.ViewArea;
+                }
+
+                map.Core.Provider1 = e.NewValue as GMapProvider;
+
+                map.Copyright = null;
+                if (!string.IsNullOrEmpty(map.Core.Provider1.Copyright))
+                {
+                    map.Copyright = new FormattedText(map.Core.Provider1.Copyright, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, new Typeface("GenericSansSerif"), 9, Brushes.Navy);
                 }
 
                 if (map.Core.IsStarted && map.Core.zoomToArea)
@@ -1310,22 +1376,22 @@ namespace MiniGMap.WindowsPresentation
                         {
                             g.DrawRectangle(null, EmptyTileBorders, new Rect(Core.tileRect.X, Core.tileRect.Y, Core.tileRect.Width, Core.tileRect.Height));
 
-                            if (tilePoint.PosXY == Core.centerTileXYLocation)
-                            {
-                                FormattedText TileText = new FormattedText("CENTER:" + tilePoint.ToString(), System.Globalization.CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, tileTypeface, 16, Brushes.Red)
-                                {
-                                    MaxTextWidth = Core.tileRect.Width
-                                };
-                                g.DrawText(TileText, new System.Windows.Point(Core.tileRect.X + Core.tileRect.Width / 2 - EmptyTileText.Width / 2, Core.tileRect.Y + Core.tileRect.Height / 2 - TileText.Height / 2));
-                            }
-                            else
-                            {
-                                FormattedText TileText = new FormattedText("TILE: " + tilePoint.ToString(), System.Globalization.CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, tileTypeface, 16, Brushes.Red)
-                                {
-                                    MaxTextWidth = Core.tileRect.Width
-                                };
-                                g.DrawText(TileText, new System.Windows.Point(Core.tileRect.X + Core.tileRect.Width / 2 - EmptyTileText.Width / 2, Core.tileRect.Y + Core.tileRect.Height / 2 - TileText.Height / 2));
-                            }
+                            //if (tilePoint.PosXY == Core.centerTileXYLocation)
+                            //{
+                            //    FormattedText TileText = new FormattedText("CENTER:" + tilePoint.ToString(), System.Globalization.CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, tileTypeface, 16, Brushes.Red)
+                            //    {
+                            //        MaxTextWidth = Core.tileRect.Width
+                            //    };
+                            //    g.DrawText(TileText, new System.Windows.Point(Core.tileRect.X + Core.tileRect.Width / 2 - EmptyTileText.Width / 2, Core.tileRect.Y + Core.tileRect.Height / 2 - TileText.Height / 2));
+                            //}
+                            //else
+                            //{
+                            //    FormattedText TileText = new FormattedText("TILE: " + tilePoint.ToString(), System.Globalization.CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, tileTypeface, 16, Brushes.Red)
+                            //    {
+                            //        MaxTextWidth = Core.tileRect.Width
+                            //    };
+                            //    g.DrawText(TileText, new System.Windows.Point(Core.tileRect.X + Core.tileRect.Width / 2 - EmptyTileText.Width / 2, Core.tileRect.Y + Core.tileRect.Height / 2 - TileText.Height / 2));
+                            //}
                         }
                     }
                 }

@@ -85,7 +85,24 @@ namespace MiniGMap.Core
             {
                 Version vs = os.Version;
 
-                if (vs.Major >= 6 && vs.Minor > 0)
+                if (vs.Major >= 6 && vs.Minor >= 1)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public static bool IsRunningOnWin10orLater()
+        {
+            OperatingSystem os = Environment.OSVersion;
+
+            if (os.Platform == PlatformID.Win32NT)
+            {
+                Version vs = os.Version;
+
+                if (vs.Major >= 10 && vs.Minor >= 0)
                 {
                     return true;
                 }

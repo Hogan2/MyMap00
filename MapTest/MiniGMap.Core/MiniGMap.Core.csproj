@@ -60,6 +60,7 @@
     <Compile Include="Core.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="FastReaderWriterLock.cs" />
+    <Compile Include="FastResourceLock.cs" />
     <Compile Include="GMapProvider.cs" />
     <Compile Include="GMaps.cs" />
     <Compile Include="GoogleChinaSatelliteMapProvider.cs" />
